@@ -1,4 +1,4 @@
-package benchmarker
+package benchmark
 
 import (
 	"log"
@@ -10,23 +10,15 @@ import (
 	"github.com/lucitez/benchmark/crawler"
 )
 
-type Benchmarker struct {
-	BaseURL string
-}
-
-func New(u string) Benchmarker {
-	return Benchmarker{u}
-}
-
-func (b Benchmarker) BenchmarkWebsite(onUrl func(Performance)) {
-	logger.Printf("Benchmarking %s...\n", b.BaseURL)
+func benchmarkWebsite(url string, onUrl func(Performance)) {
+	logger.Printf("Benchmarking %s...\n", url)
 
 	start := time.Now()
 
 	urls := make(chan string)
 	pch := make(chan Performance)
 
-	go crawler.Crawl(b.BaseURL, 0, urls, &sync.Map{})
+	go crawler.Crawl(url, 0, urls, &sync.Map{})
 	go processUrls(urls, pch)
 
 	performances := []Performance{}
