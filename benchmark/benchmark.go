@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -12,6 +13,9 @@ import (
 
 func benchmarkWebsite(url string, onUrl func(Performance)) {
 	logger.Printf("Benchmarking %s...\n", url)
+	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
+		url = "https://" + url
+	}
 
 	start := time.Now()
 

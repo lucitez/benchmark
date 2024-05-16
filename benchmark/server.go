@@ -37,10 +37,10 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			fmt.Println("Reached EOF")
 			continue
 		case websocket.CloseStatus(err) == websocket.StatusNormalClosure:
-			fmt.Printf("Connection terminated")
+			fmt.Println("Connection terminated")
 			return
 		case websocket.CloseStatus(err) == websocket.StatusGoingAway:
-			fmt.Printf("Connection terminated")
+			fmt.Println("Connection terminated")
 			return
 		case err != nil:
 			fmt.Printf("Failed to process: %v", err)
@@ -111,7 +111,7 @@ func handleBenchmark(ctx context.Context, conn *websocket.Conn, url string) erro
 		write(ctx, conn, topipe)
 	})
 
-	endmsg := "Benchmarking complete\n"
+	endmsg := "benchmarking_complete\n"
 	log.Print(endmsg)
 	err = write(ctx, conn, endmsg)
 	return err
