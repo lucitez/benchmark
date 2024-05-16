@@ -111,7 +111,7 @@ func handleBenchmark(ctx context.Context, conn *websocket.Conn, url string) erro
 		write(ctx, conn, topipe)
 	})
 
-	endmsg := "benchmarking_complete\n"
+	endmsg := "message;benchmarking_complete\n"
 	log.Print(endmsg)
 	err = write(ctx, conn, endmsg)
 	return err
