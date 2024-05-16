@@ -18,11 +18,15 @@ import (
 type Server struct{}
 
 func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	conn, err := websocket.Accept(w, r, nil)
+	acceptOpts := websocket.AcceptOptions{
+		InsecureSkipVerify: true,
+	}
+	conn, err := websocket.Accept(w, r, &acceptOpts)
 	if err != nil {
 		log.Printf("failed to accept websocket: %v\n", err)
 		return
 	}
+	log.Printf("received connection")
 
 	defer conn.CloseNow()
 
@@ -33,6 +37,10 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			fmt.Println("Reached EOF")
 			continue
 		case websocket.CloseStatus(err) == websocket.StatusNormalClosure:
+			fmt.Printf("Connection terminated")
+			return
+		case websocket.CloseStatus(err) == websocket.StatusGoingAway:
+			fmt.Printf("Connection terminated")
 			return
 		case err != nil:
 			fmt.Printf("Failed to process: %v", err)
