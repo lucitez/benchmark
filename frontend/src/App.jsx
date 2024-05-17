@@ -1,38 +1,25 @@
 import "./App.css";
 import { useEffect, useState } from "react";
 import BenchmarkResult from "./components/BenchmarkResult";
+import CustomWS from './websocket'
+
+const client = new CustomWS()
 
 function App() {
 	const [url, setUrl] = useState("");
 	const [benchmarks, setBenchmarks] = useState([]);
-	const [websocket, setWebsocket] = useState();
 	const [isBenchmarking, setIsBenchmarking] = useState(false);
 
-	// TODO validate url
+	// TODO validate url format
 	const submitBenchmark = () => {
 		setBenchmarks([]);
 		setIsBenchmarking(true);
-		websocket.send(`benchmark;${url}`);
+		client.send(`benchmark;${url}`);
 	};
 
 	useEffect(() => {
-		const sock = new WebSocket("ws://localhost:8000");
-
-		sock.addEventListener("open", (event) => {
-			console.log("WEBSOCKET OPEN", event);
-		});
-
-		sock.addEventListener("error", (event) => {
-			console.log("WEBSOCKET ERROR", event);
-		});
-
-		// TODO make reconnecting
-		sock.addEventListener("error", (event) => {
-			console.log("WEBSOCKET CLOSED", event);
-		});
-
-		sock.addEventListener("message", (event) => {
-			const [messageType, messageValue] = event.data.split(";");
+		function handleMessage(message) {
+			const [messageType, messageValue] = message.split(";");
 			switch (messageType) {
 				case "url_performance": {
 					const benchmark = JSON.parse(messageValue);
@@ -42,19 +29,18 @@ function App() {
 				default: {
 					console.log("MESSAGE RECEIVED", messageValue);
 					if (messageValue.trim() === "benchmarking_complete") {
-						console.log("OH UEA")
 						setIsBenchmarking(false);
 					}
 				}
 			}
-		});
+		}
 
-		setWebsocket(sock);
+		client.addListener(handleMessage)
 
 		return () => {
-			sock.close();
-		};
-	}, []);
+			client.removeListener(handleMessage)
+		}
+	}, [])
 
 	return (
 		<div className="App">
@@ -74,7 +60,7 @@ function App() {
 			</div>
 			<div className="results-container">
 				{benchmarks.map((benchmark) => {
-					return <BenchmarkResult key={benchmark.url} url={benchmark.url} />
+					return <BenchmarkResult key={benchmark.url} url={benchmark.url} latency={benchmark.latency} />
 				})}
 			</div>
 		</div>
