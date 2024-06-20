@@ -27,7 +27,6 @@ func benchmarkWebsite(url string, onUrl func(Performance)) {
 
 	performances := []Performance{}
 
-	// todo insertion sort as we get them from the chan
 	for performance := range pch {
 		onUrl(performance)
 		performances = append(performances, performance)

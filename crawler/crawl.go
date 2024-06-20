@@ -4,12 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/lucitez/benchmark/crawler/pagereader"
+	"github.com/lucitez/benchmark/pagereader"
 )
 
 var MAX_DEPTH = 2
@@ -39,45 +40,93 @@ safemap: a way to cache visited urls. caller can pass an empty sync.Map pointer
 
 !!! depth _must_ be passed as 0 by the original caller, or else the channel will never close. !!!
 */
-func Crawl(url string, depth int, out chan<- string, safemap *sync.Map) {
+func Crawl(urlStr string, depth int, urls chan<- string, visited *sync.Map) {
+	// this recursive function exits once all subroutines have finished
 	if depth == 0 {
-		defer close(out)
+		defer close(urls)
 	}
 
 	if depth >= MAX_DEPTH {
 		return
 	}
 
-	llr, err := pagereader.NewLocalLinkReader(url, client.Get)
+	pageReader, err := pagereader.New(urlStr, client.Get)
 
 	// There was a problem accessing the url, likely due to a disallowed redirect
+	// TODO send these to an error chan
 	if err != nil {
-		// fmt.Println(err) this can get noisy. TODO add a verbose flag
+		fmt.Println(err)
 		return
 	}
 
-	out <- url
+	urls <- urlStr
+
+	rootUrl, err := url.Parse(urlStr)
+	if err != nil {
+		fmt.Printf("Error parsing url into struct %v\n", err)
+	}
+
+	foundUrlChan := make(chan string)
+	go pageReader.ScrapeLocalURLs(foundUrlChan)
 
 	wg := sync.WaitGroup{}
-	llr.Read(func(foundUrl string) {
-		// do not visit urls with file extensions. TODO allow .html files?
-		var re = regexp.MustCompile(`.*\.\w{2,}$`)
-
-		if matches := re.Find([]byte(foundUrl)); matches != nil {
-			return
+	for foundUrl := range foundUrlChan {
+		sanitizedUrl, ok := validateUrl(rootUrl, foundUrl)
+		if !ok {
+			continue
 		}
 
-		if _, loaded := safemap.LoadOrStore(foundUrl, true); loaded {
-			return
+		// we have already visited this url, skip it
+		if _, loaded := visited.LoadOrStore(sanitizedUrl, true); loaded {
+			continue
 		}
 
 		wg.Add(1)
 
-		go func() {
-			Crawl(foundUrl, depth+1, out, safemap)
+		go func(u string) {
+			Crawl(u, depth+1, urls, visited)
 			wg.Done()
-		}()
-	})
+		}(sanitizedUrl)
+	}
 
 	wg.Wait()
+}
+
+func validateUrl(rootUrl *url.URL, foundUrl string) (string, bool) {
+	// exclude urls with file extensions
+	// TODO: allow .html files?
+	var re = regexp.MustCompile(`.*\.\w{2,}$`)
+	if matches := re.Find([]byte(foundUrl)); matches != nil {
+		return "", false
+	}
+
+	fullFoundUrl, err := rootUrl.Parse(foundUrl)
+	if err != nil {
+		return "", false
+	}
+
+	// Only follow urls with same host
+	if !strings.HasSuffix(fullFoundUrl.Host, rootUrl.Host) {
+		return "", false
+	}
+
+	sanitizedUrl := sanitizeUrl(fullFoundUrl.String())
+
+	return sanitizedUrl, sanitizedUrl != ""
+}
+
+// strip query strings and anchor tags
+func sanitizeUrl(url string) string {
+	var re = regexp.MustCompile(`([^#?]*)[#?]?.*`)
+
+	matches := re.FindSubmatch([]byte(url))
+
+	if len(matches) != 2 {
+		fmt.Printf("Could not sanitize url: %s\n", url)
+		return ""
+	}
+
+	match := string(matches[1])
+	match = strings.TrimSuffix(match, "/")
+	return match
 }

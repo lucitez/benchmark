@@ -11,14 +11,21 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 100px;
+  padding: 80px;
+  padding-bottom: 60px;
 }
 
 .logo {
   color: aliceblue;
 }
 
+.status-container {
+  padding: 30px;
+  color: aliceblue;
+}
+
 .results-container {
+  background-color: #31353e;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -27,9 +34,8 @@
   scrollbar-width: thin;
   color: aliceblue;
   margin: 50px;
-  min-width: 350px;
-  padding-left: 50px;
-  padding-right: 50px;
+  margin-top: 0;
+  min-width: 400px;
 }
 
 .App-logo {
@@ -61,6 +67,7 @@
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
