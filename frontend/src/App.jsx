@@ -8,23 +8,29 @@ const client = new CustomWS();
 function App() {
 	const [url, setUrl] = useState("");
 	const [benchmarks, setBenchmarks] = useState([]);
-	const [isBenchmarking, setIsBenchmarking] = useState(false);
+	const [status, setStatus] = useState("idle");
 
 	// TODO validate url format
 	const submitBenchmark = (e) => {
 		e.preventDefault();
 
 		setBenchmarks([]);
-		setIsBenchmarking(true);
+		setStatus("idle");
 		client.send(`benchmark;${url}`);
 	};
 
 	useEffect(() => {
 		function handleMessage(message) {
-			const [messageType, messageValue] = message.split(";");
+			let [messageType, messageValue] = message.split(";");
+			messageValue = messageValue.trim();
 			switch (messageType) {
 				case "url": {
 					setBenchmarks((b) => [...b, { url: messageValue }]);
+					break;
+				}
+				case "status": {
+					console.log(messageValue);
+					setStatus(messageValue);
 					break;
 				}
 				case "benchmark": {
@@ -40,10 +46,7 @@ function App() {
 					break;
 				}
 				default: {
-					console.log("MESSAGE RECEIVED", messageValue);
-					if (messageValue.trim() === "benchmarking_complete") {
-						setIsBenchmarking(false);
-					}
+					console.log("unhandled message received: ", messageValue);
 				}
 			}
 		}
@@ -64,12 +67,14 @@ function App() {
 				<form onSubmit={submitBenchmark}>
 					<input
 						type="text"
-						placeholder="type url here"
+						placeholder="enter url"
 						value={url}
 						onChange={(e) => setUrl(e.target.value)}
 					/>
 					<button
-						disabled={isBenchmarking}
+						disabled={
+							url.length === 0 || ["crawling", "benchmarking"].includes(status)
+						}
 						type="button"
 						formAction="submit"
 						onClick={submitBenchmark}
@@ -80,10 +85,12 @@ function App() {
 			</div>
 
 			<div className="status-container">
-				{isBenchmarking && <div className="status">Benchmarking...</div>}
-				{!isBenchmarking && benchmarks.length > 0 && (
-					<div className="status">Benchmarking Complete!</div>
-				)}
+				<div className="status">
+					{status === "crawling" && "Getting website URLs..."}
+					{status === "benchmarking" && "Measuring website performance..."}
+					{status === "error" && "Something went wrong, please check your URL"}
+					{status === "complete" && "Benchmarking Complete!"}
+				</div>
 			</div>
 
 			<div className="results-container">

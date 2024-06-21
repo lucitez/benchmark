@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"nhooyr.io/websocket"
@@ -34,19 +35,19 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = handleConnection(r.Context(), conn)
 		switch {
 		case err == io.EOF:
-			fmt.Println("Reached EOF")
+			log.Println("Reached EOF")
 			continue
 		case err == http.ErrServerClosed:
-			fmt.Println("Connection terminated")
+			log.Printf("Closing server: %v\n", err)
 			return
 		case websocket.CloseStatus(err) == websocket.StatusNormalClosure:
-			fmt.Println("Connection terminated")
+			log.Printf("Connection terminated: %v\n", err)
 			return
 		case websocket.CloseStatus(err) == websocket.StatusGoingAway:
-			fmt.Println("Connection terminated")
+			log.Printf("Connection terminated: %v\n", err)
 			return
 		case err != nil:
-			fmt.Printf("Failed to process: %v", err)
+			log.Printf("Unhandled error while handling websocket connection: %v\n", err)
 			return
 		}
 	}
@@ -65,7 +66,7 @@ func handleConnection(ctx context.Context, conn *websocket.Conn) error {
 		return err
 	}
 
-	fmt.Printf("RECEIVED: %s\n", msg)
+	log.Printf("Received message: %s\n", msg)
 
 	msgType, msgVal := extractMsg(msg)
 
@@ -73,12 +74,10 @@ func handleConnection(ctx context.Context, conn *websocket.Conn) error {
 	switch msgType {
 	case "benchmark":
 		err = handleBenchmark(ctx, conn, msgVal)
-	case "message":
-		log.Println("Received message: " + msgVal)
 	case "echo":
 		err = write(ctx, conn, msgVal)
 	default:
-		err = write(ctx, conn, "error;valid message types are 'benchmark', 'message'\n")
+		err = write(ctx, conn, "error;valid message types are 'benchmark' and 'echo'\n")
 	}
 
 	return err
@@ -98,38 +97,13 @@ func write(ctx context.Context, conn *websocket.Conn, msg string) error {
 	return w.Close()
 }
 
-func handleBenchmark(ctx context.Context, conn *websocket.Conn, rootUrl string) error {
-	var err error
-
-	startmsg := "message;Benchmarking " + rootUrl + "\n"
-	log.Print(startmsg)
-	err = write(ctx, conn, startmsg)
-	if err != nil {
+func sendStatus(ctx context.Context, conn *websocket.Conn, status string) error {
+	message := "status;" + status + "\n"
+	log.Print(message)
+	if err := write(ctx, conn, message); err != nil {
 		return err
 	}
-
-	urls := make(chan string)
-	benchmarks := make(chan Benchmark)
-
-	go benchmarkWebsite(rootUrl, urls, benchmarks)
-
-	for url := range urls {
-		write(ctx, conn, "url;"+url)
-	}
-
-	for benchmark := range benchmarks {
-		asJson, err := json.Marshal(benchmark)
-		if err != nil {
-			fmt.Printf("Error marshalling benchmark %v\n", err)
-		}
-		topipe := "benchmark;" + string(asJson) + "\n"
-		write(ctx, conn, topipe)
-	}
-
-	endmsg := "message;benchmarking_complete\n"
-	log.Print(endmsg)
-	err = write(ctx, conn, endmsg)
-	return err
+	return nil
 }
 
 func extractMsg(msg string) (string, string) {
@@ -144,4 +118,54 @@ func extractMsg(msg string) (string, string) {
 	}
 
 	return strings.TrimSpace(msgType), strings.TrimSpace(msgVal)
+}
+
+func handleBenchmark(ctx context.Context, conn *websocket.Conn, rootUrl string) error {
+	if rootUrl == "" {
+		_ = sendStatus(ctx, conn, "error")
+		return fmt.Errorf("invalid URL")
+	}
+
+	if !strings.HasPrefix(rootUrl, "http://") || !strings.HasPrefix(rootUrl, "https://") {
+		rootUrl = "https://" + rootUrl
+	}
+
+	parsedURL, err := url.ParseRequestURI(rootUrl)
+	if err != nil {
+		_ = sendStatus(ctx, conn, "error")
+		return err
+	}
+
+	log.Printf("Parsed URL is %s\n", parsedURL)
+
+	urlsIn := make(chan string)
+	benchmarksIn := make(chan Benchmark)
+
+	if err := sendStatus(ctx, conn, "crawling"); err != nil {
+		return err
+	}
+
+	go benchmarkWebsite(rootUrl, urlsIn, benchmarksIn)
+
+	// send client crawled urls as we receive them
+	for url := range urlsIn {
+		write(ctx, conn, "url;"+url)
+	}
+
+	if err := sendStatus(ctx, conn, "benchmarking"); err != nil {
+		return err
+	}
+
+	// then send client benchmarks as we receive them
+	for benchmark := range benchmarksIn {
+		asJson, err := json.Marshal(benchmark)
+		if err != nil {
+			log.Printf("Error marshalling benchmark %v\n", err)
+			continue
+		}
+		topipe := "benchmark;" + string(asJson) + "\n"
+		write(ctx, conn, topipe)
+	}
+
+	return sendStatus(ctx, conn, "complete")
 }

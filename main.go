@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/lucitez/benchmark/benchmark"
 )
@@ -22,7 +23,7 @@ func main() {
 func run() error {
 	listener, err := net.Listen("tcp", ":8000")
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	fmt.Println("Listening on :8000")
@@ -40,13 +41,13 @@ func run() error {
 	signal.Notify(sigs, os.Interrupt)
 	select {
 	case err := <-errChan:
-		log.Printf("failed to serve: %v", err)
+		log.Printf("server error: %v", err)
 	case sig := <-sigs:
 		log.Printf("terminating: %v", sig)
 	}
 
-	// ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	// defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
 
-	return server.Shutdown(context.Background())
+	return server.Shutdown(ctx)
 }
