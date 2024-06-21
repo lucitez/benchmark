@@ -3,33 +3,31 @@ package benchmark
 import (
 	"log"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/lucitez/benchmark/crawler"
+	"golang.org/x/sync/errgroup"
 )
 
-func benchmarkWebsite(rootUrl string, urlOut chan<- string, benchmarkOut chan<- Benchmark) {
-	logger.Printf("Benchmarking %s...\n", rootUrl)
+var MAX_DEPTH = 3
 
-	if !strings.HasPrefix(rootUrl, "http://") && !strings.HasPrefix(rootUrl, "https://") {
-		rootUrl = "https://" + rootUrl
-	}
+func benchmarkWebsite(rootURL string, urlOut chan<- string, benchmarkOut chan<- Benchmark) {
+	logger.Printf("Benchmarking %s...\n", rootURL)
 
 	start := time.Now()
 
-	cr := crawler.New(rootUrl, 2)
+	cr := crawler.New(rootURL, MAX_DEPTH)
 
-	visited := make(chan string)
+	visitedIn := make(chan string)
 
-	go cr.Crawl(visited)
+	go cr.Crawl(visitedIn)
 
 	urls := []string{}
 
-	for visitedUrl := range visited {
-		urls = append(urls, visitedUrl)
-		urlOut <- visitedUrl
+	for visitedURL := range visitedIn {
+		urls = append(urls, visitedURL)
+		urlOut <- visitedURL
 	}
 	close(urlOut)
 
@@ -88,18 +86,20 @@ func benchmarkURL(url string) Benchmark {
 	}
 }
 
-// as the crawler sends urls in the url chan, send them to the benchmarker.
-// once each url has been benchmarked, close the performance chan.
-func benchmarkURLs(urls []string, pc chan<- Benchmark) {
-	wg := sync.WaitGroup{}
+// benchmarkURLs ranges over the crawled urls and calls benchmarkURL on each.
+// limit concurrency here because benchmarkURL spins up 10 goroutines each
+// which can overload the network.
+// each benchmark is sent to benchmarkOut as they come in
+func benchmarkURLs(urls []string, benchmarkOut chan<- Benchmark) {
+	g := new(errgroup.Group)
+	g.SetLimit(20)
 	for _, url := range urls {
-		wg.Add(1)
-		go func(u string) {
-			defer wg.Done()
-
-			pc <- benchmarkURL(u)
-		}(url)
+		url := url
+		g.Go(func() error {
+			benchmarkOut <- benchmarkURL(url)
+			return nil
+		})
 	}
-	wg.Wait()
-	close(pc)
+	g.Wait()
+	close(benchmarkOut)
 }
