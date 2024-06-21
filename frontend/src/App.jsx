@@ -23,9 +23,20 @@ function App() {
 		function handleMessage(message) {
 			const [messageType, messageValue] = message.split(";");
 			switch (messageType) {
-				case "url_performance": {
+				case "url": {
+					setBenchmarks((b) => [...b, { url: messageValue }]);
+					break;
+				}
+				case "benchmark": {
 					const benchmark = JSON.parse(messageValue);
-					setBenchmarks((b) => [...b, benchmark]);
+					setBenchmarks((benchmarks) =>
+						benchmarks.map((b) => {
+							if (b.url === benchmark.url) {
+								return benchmark;
+							}
+							return b;
+						}),
+					);
 					break;
 				}
 				default: {

@@ -56,7 +56,6 @@ func (r PageReader) ScrapeLocalURLs(out chan<- string) []string {
 
 		switch tt {
 		case html.ErrorToken:
-			fmt.Println("GOT ERROR TOKEN")
 			close(out)
 			return urls
 		case html.StartTagToken:

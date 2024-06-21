@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"time"
 
 	"github.com/lucitez/benchmark/benchmark"
 )
@@ -46,8 +45,8 @@ func run() error {
 		log.Printf("terminating: %v", sig)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
+	// ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	// defer cancel()
 
-	return server.Shutdown(ctx)
+	return server.Shutdown(context.Background())
 }

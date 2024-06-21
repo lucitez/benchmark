@@ -36,6 +36,9 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case err == io.EOF:
 			fmt.Println("Reached EOF")
 			continue
+		case err == http.ErrServerClosed:
+			fmt.Println("Connection terminated")
+			return
 		case websocket.CloseStatus(err) == websocket.StatusNormalClosure:
 			fmt.Println("Connection terminated")
 			return
@@ -95,21 +98,33 @@ func write(ctx context.Context, conn *websocket.Conn, msg string) error {
 	return w.Close()
 }
 
-func handleBenchmark(ctx context.Context, conn *websocket.Conn, url string) error {
+func handleBenchmark(ctx context.Context, conn *websocket.Conn, rootUrl string) error {
 	var err error
 
-	startmsg := "message;Benchmarking " + url + "\n"
+	startmsg := "message;Benchmarking " + rootUrl + "\n"
 	log.Print(startmsg)
 	err = write(ctx, conn, startmsg)
 	if err != nil {
 		return err
 	}
 
-	benchmarkWebsite(url, func(p Performance) {
-		asJson, _ := json.Marshal(p)
-		topipe := "url_performance;" + string(asJson) + "\n"
+	urls := make(chan string)
+	benchmarks := make(chan Benchmark)
+
+	go benchmarkWebsite(rootUrl, urls, benchmarks)
+
+	for url := range urls {
+		write(ctx, conn, "url;"+url)
+	}
+
+	for benchmark := range benchmarks {
+		asJson, err := json.Marshal(benchmark)
+		if err != nil {
+			fmt.Printf("Error marshalling benchmark %v\n", err)
+		}
+		topipe := "benchmark;" + string(asJson) + "\n"
 		write(ctx, conn, topipe)
-	})
+	}
 
 	endmsg := "message;benchmarking_complete\n"
 	log.Print(endmsg)

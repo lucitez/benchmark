@@ -13,7 +13,18 @@ import (
 	"github.com/lucitez/benchmark/pagereader"
 )
 
-var MAX_DEPTH = 2
+type Crawler struct {
+	rootURL  string
+	maxDepth int
+}
+
+func New(rootURL string, maxDepth int) Crawler {
+	return Crawler{
+		rootURL,
+		maxDepth,
+	}
+}
+
 var client = http.Client{
 	Timeout: time.Second * 5,
 	// do not allow redirects to a different host from the original request
@@ -31,7 +42,16 @@ var client = http.Client{
 }
 
 /*
-Crawl recursively visits urls until it reaches the MAX_DEPTH or runs out of urls to crawl.
+Crawl will crawl the crawler's url and send any url visited to chan visited
+*/
+func (c Crawler) Crawl(visited chan<- string) {
+	visitedMap := &sync.Map{}
+	visitedMap.Store(c.rootURL, true)
+	go c.crawl(c.rootURL, 0, visited, visitedMap)
+}
+
+/*
+crawl recursively visits urls until it reaches the MAX_DEPTH or runs out of urls to crawl.
 
 url: the url to visit. caller should pass the root url of the website to crawl.
 depth: the depth of the current search. caller *must* pass 0.
@@ -40,26 +60,25 @@ safemap: a way to cache visited urls. caller can pass an empty sync.Map pointer
 
 !!! depth _must_ be passed as 0 by the original caller, or else the channel will never close. !!!
 */
-func Crawl(urlStr string, depth int, urls chan<- string, visited *sync.Map) {
+func (c Crawler) crawl(urlStr string, depth int, urlOut chan<- string, visited *sync.Map) {
 	// this recursive function exits once all subroutines have finished
 	if depth == 0 {
-		defer close(urls)
+		defer close(urlOut)
 	}
 
-	if depth >= MAX_DEPTH {
+	if depth >= c.maxDepth {
 		return
 	}
 
 	pageReader, err := pagereader.New(urlStr, client.Get)
-
-	// There was a problem accessing the url, likely due to a disallowed redirect
 	// TODO send these to an error chan
 	if err != nil {
-		fmt.Println(err)
+		fmt.Printf("Error getting page for %s: %v\n", urlStr, err)
 		return
 	}
 
-	urls <- urlStr
+	// At this point, consider the current url visited
+	urlOut <- urlStr
 
 	rootUrl, err := url.Parse(urlStr)
 	if err != nil {
@@ -82,9 +101,8 @@ func Crawl(urlStr string, depth int, urls chan<- string, visited *sync.Map) {
 		}
 
 		wg.Add(1)
-
 		go func(u string) {
-			Crawl(u, depth+1, urls, visited)
+			c.crawl(u, depth+1, urlOut, visited)
 			wg.Done()
 		}(sanitizedUrl)
 	}

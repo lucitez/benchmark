@@ -5,7 +5,10 @@ function BenchmarkResult(props) {
 	return (
 		<div className="benchmark-result-container">
 			<p>{props.url}</p>
-			<p>{props.latency}ms</p>
+			<p>
+				{props.latency}
+				{props.latency && "ms"}
+			</p>
 		</div>
 	);
 }
