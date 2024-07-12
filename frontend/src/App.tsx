@@ -1,20 +1,21 @@
 import "./App.css";
 import { useEffect, useState } from "react";
 import BenchmarkResult from "./components/BenchmarkResult";
-import CustomWS from "./websocket";
+import CustomWS, { Message } from "./websocket";
+import { Benchmark } from "./types";
 
 const client = new CustomWS();
 
+type status = "idle" | "crawling" | "benchmarking" | "complete" | "error";
+
 function App() {
   const [url, setUrl] = useState("");
-  const [benchmarks, setBenchmarks] = useState([]);
+  const [benchmarks, setBenchmarks] = useState<Benchmark[]>([]);
   const [numUrlsBenchmarked, setNumUrlsBenchmarked] = useState(0);
-  const [status, setStatus] = useState("idle");
+  const [status, setStatus] = useState<status>("idle");
 
   // TODO validate url format
-  const submitBenchmark = (e) => {
-    e.preventDefault();
-
+  const startBenchmark = () => {
     setNumUrlsBenchmarked(0);
     setBenchmarks([]);
     setStatus("idle");
@@ -22,21 +23,19 @@ function App() {
   };
 
   useEffect(() => {
-    function handleMessage(message) {
-      let [messageType, messageValue] = message.split(";");
-      messageValue = messageValue.trim();
-      switch (messageType) {
+    function handleMessage({ type, value }: Message) {
+      switch (type) {
         case "url": {
-          setBenchmarks((b) => [...b, { url: messageValue }]);
+          setBenchmarks((b) => [...b, { url: value }]);
           break;
         }
         case "status": {
-          console.log(messageValue);
-          setStatus(messageValue);
+          console.log(value);
+          setStatus(value as status);
           break;
         }
         case "benchmark": {
-          const benchmark = JSON.parse(messageValue);
+          const benchmark = JSON.parse(value);
           setBenchmarks((benchmarks) =>
             benchmarks.map((b) => {
               if (b.url === benchmark.url) {
@@ -49,7 +48,7 @@ function App() {
           break;
         }
         default: {
-          console.log("unhandled message received: ", messageValue);
+          console.log("unhandled message received: ", value);
         }
       }
     }
@@ -67,7 +66,12 @@ function App() {
         <h1 className="logo">benchmark</h1>
       </div>
       <div className="search-container">
-        <form onSubmit={submitBenchmark}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            startBenchmark();
+          }}
+        >
           <input
             type="text"
             placeholder="enter url"
@@ -80,9 +84,9 @@ function App() {
             }
             type="button"
             formAction="submit"
-            onClick={submitBenchmark}
+            onClick={startBenchmark}
           >
-            Submit
+            Start
           </button>
         </form>
       </div>

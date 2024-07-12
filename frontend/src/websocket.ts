@@ -1,8 +1,16 @@
+export type Message = {
+    type: string;
+    value: string
+}
+type Listener = (msg: Message) => void
+
 export default class CustomWS {
+    private listeners: Listener[]
+    private sock: WebSocket
+
     constructor() {
         this.listeners = []
         this.start()
-        this.ready = false
     }
 
     start() {
@@ -12,12 +20,13 @@ export default class CustomWS {
 
         sock.onopen = event => {
             console.log("WEBSOCKET OPEN", event)
-            this.ready = true
         }
 
         sock.onmessage = (event) => {
+            let [type, value] = event.data.split(";");
+            value = value.trim();
             for (const listener of this.listeners) {
-                listener(event.data)
+                listener({ type, value })
             }
         }
 
@@ -33,15 +42,15 @@ export default class CustomWS {
         }
     }
 
-    addListener(fn) {
-        this.listeners = [...this.listeners, fn]
+    addListener(listener: Listener) {
+        this.listeners = [...this.listeners, listener]
     }
 
-    removeListener(fn) {
-        this.listeners = this.listeners.filter(l => l !== fn)
+    removeListener(listener: Listener) {
+        this.listeners = this.listeners.filter(l => l !== listener)
     }
 
-    send(msg) {
+    send(msg: string) {
         this.sock.send(msg)
     }
 }
