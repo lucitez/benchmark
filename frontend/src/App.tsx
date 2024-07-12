@@ -13,14 +13,30 @@ function App() {
   const [benchmarks, setBenchmarks] = useState<Benchmark[]>([]);
   const [numUrlsBenchmarked, setNumUrlsBenchmarked] = useState(0);
   const [status, setStatus] = useState<status>("idle");
+  const [error, setError] = useState("");
 
   // TODO validate url format
   const startBenchmark = () => {
+    const expression =
+      /[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/gi;
+    const regex = new RegExp(expression);
+
+    if (!url.match(regex)) {
+      setStatus("error");
+      setError("Please enter a valid url");
+      return;
+    }
+
     setNumUrlsBenchmarked(0);
     setBenchmarks([]);
     setStatus("idle");
+    setError("");
     client.send(`benchmark;${url}`);
   };
+
+  useEffect(() => {
+    document.title = "benchmark - measure your website's performance";
+  }, []);
 
   useEffect(() => {
     function handleMessage({ type, value }: Message) {
@@ -32,6 +48,11 @@ function App() {
         case "status": {
           console.log(value);
           setStatus(value as status);
+          if (value === "complete") {
+            setTimeout(() => {
+              setStatus("idle");
+            }, 2000);
+          }
           break;
         }
         case "benchmark": {
@@ -65,50 +86,50 @@ function App() {
       <div className="logo-container">
         <h1 className="logo">benchmark</h1>
       </div>
-      <div className="search-container">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            startBenchmark();
-          }}
-        >
-          <input
-            type="text"
-            placeholder="enter url"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-          />
-          <button
-            disabled={
-              url.length === 0 || ["crawling", "benchmarking"].includes(status)
-            }
-            type="button"
-            formAction="submit"
-            onClick={startBenchmark}
-          >
-            Start
-          </button>
-        </form>
+      <div className="subtitle-container">
+        <div className="subtitle">
+          enter a url to measure a website's performance
+        </div>
       </div>
+
+      <form
+        className="search-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          startBenchmark();
+        }}
+      >
+        <input
+          className="url-input"
+          type="text"
+          placeholder="enter url"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+        />
+        <button
+          className="url-submit"
+          disabled={
+            url.length === 0 || ["crawling", "benchmarking"].includes(status)
+          }
+          type="button"
+          formAction="submit"
+          onClick={startBenchmark}
+        >
+          start
+        </button>
+      </form>
 
       <div className="status-container">
         <div className="status">
-          {status === "crawling" && "Getting website URLs..."}
-          {status === "benchmarking" && "Measuring website performance..."}
-          {status === "error" && "Something went wrong, please check your URL"}
+          {status === "crawling" &&
+            `crawling ${url} URLs: ${benchmarks.length}`}
+          {status === "benchmarking" &&
+            `measuring performance: (${numUrlsBenchmarked}/${benchmarks.length})`}
+          {status === "error" &&
+            (error || "Something went wrong, please check your URL")}
           {status === "complete" && "Benchmarking Complete!"}
         </div>
       </div>
-
-      {["crawling", "benchmarking"].includes(status) && (
-        <div className="progress-container">
-          <div className="progress">
-            {status === "crawling" && `URLs found: ${benchmarks.length}`}
-            {status === "benchmarking" &&
-              `Progress: (${numUrlsBenchmarked}/${benchmarks.length})`}
-          </div>
-        </div>
-      )}
 
       <div className="results-container">
         {benchmarks.map((benchmark) => {

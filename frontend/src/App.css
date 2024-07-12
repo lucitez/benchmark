@@ -12,12 +12,21 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 80px;
-  padding-bottom: 60px;
+  padding: 60px;
+  padding-bottom: 0;
 }
 
 .logo {
-  font-size: xx-large;
+  font-size: 60px;
+}
+
+.subtitle-container {
+  display: flex;
+  padding-bottom: 40px;
+}
+
+.subtitle {
+  font-weight: 500;
 }
 
 .status-container {
@@ -27,6 +36,41 @@
 .progress-container {
   padding: 30px;
   padding-top: 0;
+}
+
+.search-form {
+  display: flex;
+  flex-direction: row;
+}
+
+.url-input {
+  height: 25px;
+  border: none; /* <-- This thing here */
+  border: solid 1px aliceblue;
+  border-radius: 7px;
+  padding-left: 10px;
+  margin-right: 10px;
+}
+
+.url-input:focus-visible {
+  outline: none;
+}
+
+.url-submit {
+  height: 29px;
+  border: none;
+  border-radius: 7px;
+  padding-left: 10px;
+  padding-right: 10px;
+  background-color: #dddddd;
+}
+
+.url-submit:hover {
+  cursor: pointer;
+}
+
+.url-submit:active {
+  background-color: #919192;
 }
 
 .results-container {
