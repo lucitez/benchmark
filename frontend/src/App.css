@@ -1,3 +1,11 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+  background-color: #282c34;
+}
+
 .App {
   text-align: center;
   background-color: #282c34;
@@ -45,7 +53,7 @@
 
 .url-input {
   height: 25px;
-  border: none; /* <-- This thing here */
+  border: none;
   border: solid 1px aliceblue;
   border-radius: 7px;
   padding-left: 10px;
@@ -56,7 +64,7 @@
   outline: none;
 }
 
-.url-submit {
+/* .url-submit {
   height: 29px;
   border: none;
   border-radius: 7px;
@@ -71,7 +79,7 @@
 
 .url-submit:active {
   background-color: #919192;
-}
+} */
 
 .results-container {
   background-color: #31353e;
@@ -87,37 +95,38 @@
   min-width: 400px;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+/* .logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
-}
-
-.App-link {
-  color: #61dafb;
-}
-
-@keyframes App-logo-spin {
+@keyframes logo-spin {
   from {
     transform: rotate(0deg);
   }
-
   to {
     transform: rotate(360deg);
   }
 }
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+} */

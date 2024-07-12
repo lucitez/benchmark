@@ -6,7 +6,7 @@ type Listener = (msg: Message) => void
 
 export default class CustomWS {
     private listeners: Listener[]
-    private sock: WebSocket
+    private sock!: WebSocket;
 
     constructor() {
         this.listeners = []
