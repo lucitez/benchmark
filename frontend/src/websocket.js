@@ -2,6 +2,7 @@ export default class CustomWS {
     constructor() {
         this.listeners = []
         this.start()
+        this.ready = false
     }
 
     start() {
@@ -11,6 +12,7 @@ export default class CustomWS {
 
         sock.onopen = event => {
             console.log("WEBSOCKET OPEN", event)
+            this.ready = true
         }
 
         sock.onmessage = (event) => {

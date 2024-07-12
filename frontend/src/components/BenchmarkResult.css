@@ -7,3 +7,14 @@
     padding-left: 20px;
     padding-right: 20px;
 }
+
+.benchmark-url {
+    display: block;
+    margin: 1em;
+    color: aliceblue;
+    text-decoration: none;
+}
+
+.benchmark-url:hover {
+    text-decoration: underline;
+}

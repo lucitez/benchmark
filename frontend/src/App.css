@@ -1,6 +1,7 @@
 .App {
   text-align: center;
   background-color: #282c34;
+  color: aliceblue;
   height: 100vh;
   display: flex;
   flex-direction: column;
@@ -16,12 +17,16 @@
 }
 
 .logo {
-  color: aliceblue;
+  font-size: xx-large;
 }
 
 .status-container {
   padding: 30px;
-  color: aliceblue;
+}
+
+.progress-container {
+  padding: 30px;
+  padding-top: 0;
 }
 
 .results-container {
