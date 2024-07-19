@@ -4,11 +4,10 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io"
 	"log"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"nhooyr.io/websocket"
@@ -34,6 +33,7 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	for {
 		err = handleConnection(r.Context(), conn)
 		switch {
+		// continue listening to connected client
 		case err == io.EOF:
 			log.Println("Reached EOF")
 			continue
@@ -61,6 +61,7 @@ func handleConnection(ctx context.Context, conn *websocket.Conn) error {
 
 	br := bufio.NewReader(reader)
 
+	// read until the reader receives a termination
 	msg, err := br.ReadString('\n')
 	if err != nil && err != io.EOF {
 		return err
@@ -68,12 +69,18 @@ func handleConnection(ctx context.Context, conn *websocket.Conn) error {
 
 	log.Printf("Received message: %s\n", msg)
 
-	msgType, msgVal := extractMsg(msg)
+	msgType, msgVal, err := extractMsg(msg)
+	if err != nil {
+		return err
+	}
 
 	// Then handle the message according to its type
 	switch msgType {
 	case "benchmark":
 		err = handleBenchmark(ctx, conn, msgVal)
+		if err != nil {
+			_ = sendStatus(ctx, conn, "error")
+		}
 	case "echo":
 		err = write(ctx, conn, msgVal)
 	default:
@@ -106,46 +113,33 @@ func sendStatus(ctx context.Context, conn *websocket.Conn, status string) error 
 	return nil
 }
 
-func extractMsg(msg string) (string, string) {
+func extractMsg(msg string) (string, string, error) {
 	splitMsg := strings.Split(msg, ";")
 
-	msgType := splitMsg[0]
-
-	msgVal := ""
-
-	if len(splitMsg) > 1 {
-		msgVal = splitMsg[1]
+	if len(splitMsg) != 2 {
+		return "", "", errors.New("invalid message format")
 	}
 
-	return strings.TrimSpace(msgType), strings.TrimSpace(msgVal)
+	msgType := splitMsg[0]
+	msgVal := splitMsg[1]
+
+	return strings.TrimSpace(msgType), strings.TrimSpace(msgVal), nil
 }
 
 func handleBenchmark(ctx context.Context, conn *websocket.Conn, rootUrl string) error {
-	if rootUrl == "" {
-		_ = sendStatus(ctx, conn, "error")
-		return fmt.Errorf("invalid URL")
+	validatedUrl, ok := newFunction(ctx, rootUrl, conn)
+	if !ok {
+		return errors.New("invalid URL")
 	}
-
-	if !strings.HasPrefix(rootUrl, "http://") || !strings.HasPrefix(rootUrl, "https://") {
-		rootUrl = "https://" + rootUrl
-	}
-
-	parsedURL, err := url.ParseRequestURI(rootUrl)
-	if err != nil {
-		_ = sendStatus(ctx, conn, "error")
-		return err
-	}
-
-	log.Printf("Parsed URL is %s\n", parsedURL)
-
-	urlsIn := make(chan string)
-	benchmarksIn := make(chan Benchmark)
 
 	if err := sendStatus(ctx, conn, "crawling"); err != nil {
 		return err
 	}
 
-	go benchmarkWebsite(rootUrl, urlsIn, benchmarksIn)
+	urlsIn := make(chan string)
+	benchmarksIn := make(chan Benchmark)
+
+	go benchmarkWebsite(validatedUrl, urlsIn, benchmarksIn)
 
 	// send client crawled urls as we receive them
 	for url := range urlsIn {
@@ -168,4 +162,17 @@ func handleBenchmark(ctx context.Context, conn *websocket.Conn, rootUrl string) 
 	}
 
 	return sendStatus(ctx, conn, "complete")
+}
+
+func newFunction(ctx context.Context, rootUrl string, conn *websocket.Conn) (validatedUrl string, isValid bool) {
+	// validate url, TODO add more here
+	if rootUrl == "" {
+		return "", false
+	}
+
+	// if url does not include protocol, add it
+	if !strings.HasPrefix(rootUrl, "http://") || !strings.HasPrefix(rootUrl, "https://") {
+		rootUrl = "https://" + rootUrl
+	}
+	return rootUrl, true
 }
