@@ -140,7 +140,7 @@ func handleBenchmark(ctx context.Context, conn *websocket.Conn, rootURL string) 
 		return err
 	}
 
-	c := crawler.New(validatedURL, 3)
+	c := crawler.New(validatedURL, 2)
 
 	visited := make(chan string)
 

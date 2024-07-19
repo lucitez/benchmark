@@ -125,13 +125,7 @@ function App() {
 
 			<div className="results-container">
 				{benchmarks.map((benchmark) => {
-					return (
-						<BenchmarkResult
-							key={benchmark.url}
-							url={benchmark.url}
-							latency={benchmark.latency}
-						/>
-					);
+					return <BenchmarkResult key={benchmark.url} benchmark={benchmark} />;
 				})}
 			</div>
 		</div>

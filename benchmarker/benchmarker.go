@@ -1,6 +1,8 @@
 package benchmarker
 
 import (
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"time"
@@ -38,7 +40,7 @@ func (b Benchmarker) BenchmarkWebsite(urls []string, out chan<- Benchmark) {
 	start := time.Now()
 
 	eg := errgroup.Group{}
-	eg.SetLimit(20)
+	eg.SetLimit(30)
 	for _, url := range urls {
 		url := url
 		eg.Go(func() error {
@@ -59,13 +61,14 @@ func (b Benchmarker) BenchmarkWebsite(urls []string, out chan<- Benchmark) {
 	b.Logger.Printf("Executed in %d millis\n", time.Since(start).Milliseconds())
 }
 
-var NUM_REQUESTS int64 = 10
+var NUM_REQUESTS int64 = 5
 
-// benchmark requests the url 10 times, takes the average latency, returns a ping with that latency.
+// benchmark requests the url NUM_REQUESTS times, takes the average latency, returns a ping with that latency.
 // bottleneck is here, this whole program is only as fast as the slowest crawled url.
 // in UI, we should show progress instead of blocking while we wait for all urls.
 func (b Benchmarker) benchmarkURL(url string) (Benchmark, error) {
 	latencyChan := make(chan int64, NUM_REQUESTS)
+	sizeChan := make(chan int64, NUM_REQUESTS)
 
 	// TODO handle non 200 responses, errors, and timeouts
 	// we are possibly skewing by returning early, not to mention introducing
@@ -75,13 +78,22 @@ func (b Benchmarker) benchmarkURL(url string) (Benchmark, error) {
 		eg.Go(func() error {
 			start := time.Now()
 
-			_, err := b.Client.Get(url)
+			resp, err := b.Client.Get(url)
 
 			if err != nil {
 				return err
 			}
 
 			latencyChan <- time.Since(start).Milliseconds()
+
+			written, err := io.Copy(io.Discard, resp.Body)
+			if err != nil {
+				return err
+			}
+
+			fmt.Printf("written: %v\n", written)
+
+			sizeChan <- written
 			return nil
 		})
 	}
@@ -91,13 +103,15 @@ func (b Benchmarker) benchmarkURL(url string) (Benchmark, error) {
 	}
 
 	var totalLatencyMillis int64 = 0
+	var totalSizeMillis int64 = 0
 	for i := 0; i < int(NUM_REQUESTS); i++ {
 		totalLatencyMillis += <-latencyChan
+		totalSizeMillis += <-sizeChan
 	}
 
 	return Benchmark{
 		url,
 		int64(totalLatencyMillis / NUM_REQUESTS),
-		0,
+		int64(totalSizeMillis / NUM_REQUESTS),
 	}, nil
 }
