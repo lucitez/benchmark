@@ -10,7 +10,7 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/lucitez/benchmark/benchmark"
+	"github.com/lucitez/benchmark/server"
 )
 
 func main() {
@@ -28,8 +28,12 @@ func run() error {
 
 	fmt.Println("Listening on :8000")
 
+	logger := log.Default()
+
 	server := http.Server{
-		Handler: benchmark.Server{},
+		Handler: server.TCP{
+			Logger: logger,
+		},
 	}
 
 	errChan := make(chan error, 1)

@@ -1,4 +1,4 @@
-package benchmark
+package server
 
 import (
 	"bufio"
@@ -10,14 +10,18 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/lucitez/benchmark/benchmarker"
+	"github.com/lucitez/benchmark/crawler"
 	"nhooyr.io/websocket"
 )
 
 // https://github.com/nhooyr/websocket/tree/master/internal/examples/echo
 
-type Server struct{}
+type TCP struct {
+	Logger *log.Logger
+}
 
-func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s TCP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	acceptOpts := websocket.AcceptOptions{
 		InsecureSkipVerify: true,
 	}
@@ -31,7 +35,7 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer conn.CloseNow()
 
 	for {
-		err = handleConnection(r.Context(), conn)
+		err = s.handleConnection(r.Context(), conn)
 		switch {
 		// continue listening to connected client
 		case err == io.EOF:
@@ -53,7 +57,7 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handleConnection(ctx context.Context, conn *websocket.Conn) error {
+func (s TCP) handleConnection(ctx context.Context, conn *websocket.Conn) error {
 	_, reader, err := conn.Reader(ctx)
 	if err != nil {
 		return err
@@ -126,8 +130,8 @@ func extractMsg(msg string) (string, string, error) {
 	return strings.TrimSpace(msgType), strings.TrimSpace(msgVal), nil
 }
 
-func handleBenchmark(ctx context.Context, conn *websocket.Conn, rootUrl string) error {
-	validatedUrl, ok := newFunction(ctx, rootUrl, conn)
+func handleBenchmark(ctx context.Context, conn *websocket.Conn, rootURL string) error {
+	validatedURL, ok := validateURL(rootURL)
 	if !ok {
 		return errors.New("invalid URL")
 	}
@@ -136,43 +140,49 @@ func handleBenchmark(ctx context.Context, conn *websocket.Conn, rootUrl string) 
 		return err
 	}
 
-	urlsIn := make(chan string)
-	benchmarksIn := make(chan Benchmark)
+	c := crawler.New(validatedURL, 3)
 
-	go benchmarkWebsite(validatedUrl, urlsIn, benchmarksIn)
+	visited := make(chan string)
 
-	// send client crawled urls as we receive them
-	for url := range urlsIn {
+	go c.Crawl(visited)
+
+	urls := []string{}
+	for url := range visited {
 		write(ctx, conn, "url;"+url)
+		urls = append(urls, url)
 	}
 
 	if err := sendStatus(ctx, conn, "benchmarking"); err != nil {
 		return err
 	}
 
+	b := benchmarker.New()
+	benchmarks := make(chan benchmarker.Benchmark)
+	go b.BenchmarkWebsite(urls, benchmarks)
+
 	// then send client benchmarks as we receive them
-	for benchmark := range benchmarksIn {
-		asJson, err := json.Marshal(benchmark)
+	for benchmark := range benchmarks {
+		benchmarkJSON, err := json.Marshal(benchmark)
 		if err != nil {
 			log.Printf("Error marshalling benchmark %v\n", err)
 			continue
 		}
-		topipe := "benchmark;" + string(asJson) + "\n"
-		write(ctx, conn, topipe)
+		benchmarkStr := string(benchmarkJSON)
+		write(ctx, conn, "benchmark;"+benchmarkStr+"\n")
 	}
 
 	return sendStatus(ctx, conn, "complete")
 }
 
-func newFunction(ctx context.Context, rootUrl string, conn *websocket.Conn) (validatedUrl string, isValid bool) {
+func validateURL(rootURL string) (validatedURL string, isValid bool) {
 	// validate url, TODO add more here
-	if rootUrl == "" {
+	if rootURL == "" {
 		return "", false
 	}
 
 	// if url does not include protocol, add it
-	if !strings.HasPrefix(rootUrl, "http://") || !strings.HasPrefix(rootUrl, "https://") {
-		rootUrl = "https://" + rootUrl
+	if !strings.HasPrefix(rootURL, "http://") || !strings.HasPrefix(rootURL, "https://") {
+		rootURL = "https://" + rootURL
 	}
-	return rootUrl, true
+	return rootURL, true
 }

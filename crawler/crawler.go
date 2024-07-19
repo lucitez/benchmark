@@ -1,44 +1,29 @@
 package crawler
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
 	"sync"
-	"time"
 
-	"github.com/lucitez/benchmark/pagereader"
+	"github.com/lucitez/benchmark/client"
 )
 
 type Crawler struct {
-	rootURL  string
-	maxDepth int
+	RootURL  string
+	MaxDepth int
+
+	Client http.Client
 }
 
 func New(rootURL string, maxDepth int) Crawler {
 	return Crawler{
-		rootURL,
-		maxDepth,
+		RootURL:  rootURL,
+		MaxDepth: maxDepth,
+		Client:   client.Http,
 	}
-}
-
-var client = http.Client{
-	Timeout: time.Second * 5,
-	// do not allow redirects to a different host from the original request
-	CheckRedirect: func(req *http.Request, via []*http.Request) error {
-		if strings.TrimPrefix(req.URL.Host, "www.") != strings.TrimPrefix(via[0].URL.Host, "www.") {
-			return fmt.Errorf("skipping redirect from %s to %s", via[0].URL.Host, req.URL.Host)
-		}
-
-		if len(via) > 10 {
-			return errors.New("to many redirects")
-		}
-
-		return nil
-	},
 }
 
 /*
@@ -46,8 +31,8 @@ Crawl will crawl the crawler's url and send any url visited to chan visited
 */
 func (c Crawler) Crawl(visited chan<- string) {
 	visitedMap := &sync.Map{}
-	visitedMap.Store(c.rootURL, true)
-	go c.crawl(c.rootURL, 0, visited, visitedMap)
+	visitedMap.Store(c.RootURL, true)
+	go c.crawl(c.RootURL, 0, visited, visitedMap)
 }
 
 /*
@@ -66,11 +51,11 @@ func (c Crawler) crawl(urlStr string, depth int, urlOut chan<- string, visited *
 		defer close(urlOut)
 	}
 
-	if depth >= c.maxDepth {
+	if depth >= c.MaxDepth {
 		return
 	}
 
-	pageReader, err := pagereader.New(urlStr, client.Get)
+	pageReader, err := newPageReader(urlStr, c.Client.Get)
 	// TODO send these to an error chan
 	if err != nil {
 		fmt.Printf("Error getting page for %s: %v\n", urlStr, err)

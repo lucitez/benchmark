@@ -48,11 +48,6 @@ function App() {
 				case "status": {
 					console.log(value);
 					setStatus(value as status);
-					if (value === "complete") {
-						setTimeout(() => {
-							setStatus("idle");
-						}, 2000);
-					}
 					break;
 				}
 				case "benchmark": {
@@ -115,6 +110,9 @@ function App() {
 
 			<div className="status-container">
 				<div className="status">
+					{status === "idle" &&
+						benchmarks.length > 0 &&
+						`${benchmarks.length} urls visited`}
 					{status === "crawling" &&
 						`crawling ${url} URLs: ${benchmarks.length}`}
 					{status === "benchmarking" &&

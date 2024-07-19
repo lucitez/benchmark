@@ -1,4 +1,4 @@
-package pagereader
+package crawler
 
 import (
 	"fmt"
@@ -8,28 +8,23 @@ import (
 	"golang.org/x/net/html"
 )
 
-// type PageReader interface {
-// 	Tokenizer() (tokenizer *html.Tokenizer, close func())
-// 	Read(func(string)) []string
-// }
-
-type PageReader struct {
+type pageReader struct {
 	url  *url.URL
 	page *http.Response
 }
 
-func New(rawUrl string, getFunc func(string) (*http.Response, error)) (PageReader, error) {
+func newPageReader(rawUrl string, getFunc func(string) (*http.Response, error)) (pageReader, error) {
 	parsedUrl, err := url.Parse(rawUrl)
 	if err != nil {
-		return PageReader{}, err
+		return pageReader{}, err
 	}
 
-	resp, err := http.Get(parsedUrl.String())
+	resp, err := getFunc(parsedUrl.String())
 	if err != nil {
-		return PageReader{}, err
+		return pageReader{}, err
 	}
 
-	localLinkReader := PageReader{
+	localLinkReader := pageReader{
 		url:  parsedUrl,
 		page: resp,
 	}
@@ -39,7 +34,7 @@ func New(rawUrl string, getFunc func(string) (*http.Response, error)) (PageReade
 
 // ScrapeLocalURLs finds all hrefs to the same host
 // Todo make scrape functions that take a page and return different things?
-func (r PageReader) ScrapeLocalURLs(out chan<- string) []string {
+func (r pageReader) ScrapeLocalURLs(out chan<- string) []string {
 	defer r.page.Body.Close()
 
 	urls := []string{}
