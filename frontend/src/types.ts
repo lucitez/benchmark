@@ -1,6 +1,6 @@
 type Benchmark = {
   url: string;
-  latency?: string;
+  latency?: number | undefined;
 }
 
 export type { Benchmark }

@@ -1,49 +1,26 @@
 #root {
-  max-width: 1280px;
+  width: 100vw;
   margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
-  background-color: #282c34;
-}
-
-.App {
   text-align: center;
   background-color: #282c34;
   color: aliceblue;
-  height: 100vh;
+}
+
+.App {
   display: flex;
   flex-direction: column;
   align-items: center;
+  max-height: 100vh;
 }
 
-.logo-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 60px;
-  padding-bottom: 0;
-}
-
-.logo {
-  font-size: 60px;
-}
-
-.subtitle-container {
-  display: flex;
-  padding-bottom: 40px;
-}
-
-.subtitle {
-  font-weight: 500;
+.search-form {
+  margin-top: 20px;
 }
 
 .status-container {
-  padding: 30px;
-}
-
-.progress-container {
-  padding: 30px;
-  padding-top: 0;
+  min-height: 50px;
+  display: flex;
+  align-items: center;
 }
 
 .search-form {
@@ -54,32 +31,32 @@
 .url-input {
   height: 25px;
   border: none;
-  border: solid 1px aliceblue;
-  border-radius: 7px;
+  border-radius: 25px;
+  padding: 0;
   padding-left: 10px;
+  padding-right: 10px;
   margin-right: 10px;
 }
 
-.url-input:focus-visible {
-  outline: none;
-}
-
-/* .url-submit {
-  height: 29px;
+.url-submit {
+  height: 25px;
   border: none;
-  border-radius: 7px;
-  padding-left: 10px;
-  padding-right: 10px;
-  background-color: #dddddd;
+  border-radius: 25px;
+  padding: 0;
+  padding-left: 15px;
+  padding-right: 15px;
+  background-color: #edf2ff;
+  cursor: pointer;
 }
 
 .url-submit:hover {
-  cursor: pointer;
+  background-color: #576688;
+  color: aliceblue
 }
 
 .url-submit:active {
   background-color: #919192;
-} */
+}
 
 .results-container {
   background-color: #31353e;
@@ -94,39 +71,3 @@
   margin-top: 0;
   min-width: 400px;
 }
-
-/* .logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
-}
-
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
-} */

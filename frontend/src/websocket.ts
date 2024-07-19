@@ -23,6 +23,7 @@ export default class CustomWS {
         }
 
         sock.onmessage = (event) => {
+            // eslint-disable-next-line prefer-const
             let [type, value] = event.data.split(";");
             value = value.trim();
             for (const listener of this.listeners) {

@@ -1,7 +1,7 @@
 import "./App.css";
 import { useEffect, useState } from "react";
 import BenchmarkResult from "./components/BenchmarkResult";
-import CustomWS, { Message } from "./websocket";
+import CustomWS, { type Message } from "./websocket";
 import type { Benchmark } from "./types";
 
 const client = new CustomWS();
@@ -83,14 +83,8 @@ function App() {
 
 	return (
 		<div className="App">
-			<div className="logo-container">
-				<h1 className="logo">benchmark</h1>
-			</div>
-			<div className="subtitle-container">
-				<div className="subtitle">
-					enter a url to measure a website's performance
-				</div>
-			</div>
+			<h1>benchmark</h1>
+			<div>enter a url to measure a website's performance</div>
 
 			<form
 				className="search-form"
